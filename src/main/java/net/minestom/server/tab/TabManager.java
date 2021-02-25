@@ -31,9 +31,7 @@ public class TabManager {
         PlayerInfoPacket packet = new PlayerInfoPacket(PlayerInfoPacket.Action.REMOVE_PLAYER);
 
         packet.playerInfos.add(new PlayerInfoPacket.RemovePlayer(tab.getUuid()));
-        MinecraftServer.getConnectionManager().getOnlinePlayers().forEach((p)->{
-            MinecraftServer.getSchedulerManager().buildTask(() -> p.getPlayerConnection().sendPacket(packet)).delay(20, TimeUnit.TICK).schedule();
-        });
+        MinecraftServer.getConnectionManager().getOnlinePlayers().forEach((p)-> p.getPlayerConnection().sendPacket(packet));
     }
 
     public void addTab(Tab tab) {
