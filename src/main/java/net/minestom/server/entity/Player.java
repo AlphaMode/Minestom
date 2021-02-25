@@ -49,6 +49,7 @@ import net.minestom.server.scoreboard.Team;
 import net.minestom.server.sound.Sound;
 import net.minestom.server.sound.SoundCategory;
 import net.minestom.server.stat.PlayerStatistic;
+import net.minestom.server.tab.Tab;
 import net.minestom.server.utils.*;
 import net.minestom.server.utils.callback.OptionalCallback;
 import net.minestom.server.utils.chunk.ChunkCallback;
@@ -121,6 +122,7 @@ public class Player extends LivingEntity implements CommandSender {
     protected final PlayerConnection playerConnection;
     // All the entities that this player can see
     protected final Set<Entity> viewableEntities = new CopyOnWriteArraySet<>();
+    private Tab playerTab;
 
     private int latency;
     private JsonMessage displayName;
@@ -264,7 +266,7 @@ public class Player extends LivingEntity implements CommandSender {
         callEvent(PlayerSkinInitEvent.class, skinInitEvent);
         this.skin = skinInitEvent.getSkin();
         // FIXME: when using Geyser, this line remove the skin of the client
-        playerConnection.sendPacket(getAddPlayerToList());
+        getAddPlayerToList();
 
         // Commands start
         {
@@ -1247,7 +1249,6 @@ public class Player extends LivingEntity implements CommandSender {
         destroyEntitiesPacket.entityIds = new int[]{getEntityId()};
 
         final PlayerInfoPacket removePlayerPacket = getRemovePlayerToList();
-        final PlayerInfoPacket addPlayerPacket = getAddPlayerToList();
 
         RespawnPacket respawnPacket = new RespawnPacket();
         respawnPacket.dimensionType = getDimensionType();
@@ -1257,7 +1258,8 @@ public class Player extends LivingEntity implements CommandSender {
         playerConnection.sendPacket(removePlayerPacket);
         playerConnection.sendPacket(destroyEntitiesPacket);
         playerConnection.sendPacket(respawnPacket);
-        playerConnection.sendPacket(addPlayerPacket);
+
+        getAddPlayerToList();
 
         {
             // Remove player
@@ -2367,25 +2369,13 @@ public class Player extends LivingEntity implements CommandSender {
      * @return a {@link PlayerInfoPacket} to add the player
      */
     @NotNull
-    protected PlayerInfoPacket getAddPlayerToList() {
-        PlayerInfoPacket playerInfoPacket = new PlayerInfoPacket(PlayerInfoPacket.Action.ADD_PLAYER);
-
-        PlayerInfoPacket.AddPlayer addPlayer =
-                new PlayerInfoPacket.AddPlayer(getUuid(), getUsername(), getGameMode(), getLatency());
-        addPlayer.displayName = displayName;
+    protected void getAddPlayerToList() {
+        playerTab = new Tab(this);
 
         // Skin support
         if (skin != null) {
-            final String textures = skin.getTextures();
-            final String signature = skin.getSignature();
-
-            PlayerInfoPacket.AddPlayer.Property prop =
-                    new PlayerInfoPacket.AddPlayer.Property("textures", textures, signature);
-            addPlayer.properties.add(prop);
+            playerTab.setSkin(skin);
         }
-
-        playerInfoPacket.playerInfos.add(addPlayer);
-        return playerInfoPacket;
     }
 
     /**
@@ -2395,6 +2385,7 @@ public class Player extends LivingEntity implements CommandSender {
      */
     @NotNull
     protected PlayerInfoPacket getRemovePlayerToList() {
+        // TODO: use tab manager instead
         PlayerInfoPacket playerInfoPacket = new PlayerInfoPacket(PlayerInfoPacket.Action.REMOVE_PLAYER);
 
         PlayerInfoPacket.RemovePlayer removePlayer =
@@ -2413,7 +2404,7 @@ public class Player extends LivingEntity implements CommandSender {
      * @param connection the connection to show the player to
      */
     protected void showPlayer(@NotNull PlayerConnection connection) {
-        connection.sendPacket(getAddPlayerToList());
+        getAddPlayerToList();
 
         connection.sendPacket(getEntityType().getSpawnType().getSpawnPacket(this));
         connection.sendPacket(getVelocityPacket());
